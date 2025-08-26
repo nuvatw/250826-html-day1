@@ -1,242 +1,37 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html>
 <head>
-    <!-- 設定頁面編碼為 UTF-8，支援中文 -->
     <meta charset="UTF-8">
-    <!-- 讓頁面在手機上正確顯示 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- 頁面標題，會顯示在瀏覽器分頁上 -->
-    <title>Google Sheets 數據顯示</title>
-    
-    <!-- CSS 樣式設定 -->
+    <title>Google Sheets 數據</title>
     <style>
-        /* 設定整個頁面的基本樣式 */
-        body {
-            font-family: Arial, sans-serif;  /* 字體設定 */
-            margin: 20px;                    /* 頁面邊距 */
-            background-color: #f5f5f5;       /* 背景顏色 */
-        }
-        
-        /* 標題樣式 */
-        h1 {
-            color: #333;                     /* 文字顏色 */
-            text-align: center;              /* 文字置中 */
-        }
-        
-        /* 數據容器的樣式 */
-        .data-container {
-            background-color: white;         /* 背景白色 */
-            padding: 20px;                   /* 內邊距 */
-            border-radius: 8px;              /* 圓角邊框 */
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 陰影效果 */
-            max-width: 600px;                /* 最大寬度 */
-            margin: 0 auto;                  /* 水平置中 */
-        }
-        
-        /* 數字顯示區域的樣式 */
-        .number-display {
-            font-size: 48px;                /* 大字體 */
-            font-weight: bold;               /* 粗體 */
-            color: #007bff;                  /* 藍色 */
-            text-align: center;              /* 置中 */
-            margin: 20px 0;                  /* 上下間距 */
-        }
-        
-        /* 載入狀態的樣式 */
-        .loading {
-            text-align: center;              /* 文字置中 */
-            color: #666;                     /* 灰色文字 */
-            font-style: italic;              /* 斜體 */
-        }
-        
-        /* 錯誤訊息的樣式 */
-        .error {
-            color: #dc3545;                  /* 紅色文字 */
-            text-align: center;              /* 文字置中 */
-            background-color: #f8d7da;       /* 淡紅色背景 */
-            padding: 10px;                   /* 內邊距 */
-            border-radius: 4px;              /* 圓角 */
-        }
-        
-        /* 更新時間顯示的樣式 */
-        .last-update {
-            font-size: 12px;                /* 小字體 */
-            color: #999;                     /* 淡灰色 */
-            text-align: center;              /* 置中 */
-            margin-top: 10px;                /* 上邊距 */
-        }
-        
-        /* 重新整理按鈕的樣式 */
-        .refresh-button {
-            background-color: #007bff;       /* 藍色背景 */
-            color: white;                    /* 白色文字 */
-            border: none;                    /* 無邊框 */
-            padding: 10px 20px;              /* 內邊距 */
-            border-radius: 5px;              /* 圓角 */
-            cursor: pointer;                 /* 滑鼠指標變成手型 */
-            font-size: 14px;                 /* 字體大小 */
-            transition: background-color 0.3s; /* 背景色變化動畫 */
-        }
-        
-        /* 按鈕滑鼠懸停效果 */
-        .refresh-button:hover {
-            background-color: #0056b3;       /* 深藍色背景 */
-        }
-        
-        /* 按鈕按下時的效果 */
-        .refresh-button:active {
-            transform: scale(0.98);          /* 稍微縮小 */
-        }
-        
-        /* 按鈕載入中的樣式 */
-        .refresh-button:disabled {
-            background-color: #6c757d;       /* 灰色背景 */
-            cursor: not-allowed;             /* 禁用指標 */
-        }
+        body { font-family: Arial; text-align: center; padding: 20px; }
+        #num { font-size: 48px; color: #007bff; margin: 20px; }
+        button { padding: 10px 20px; font-size: 16px; }
     </style>
 </head>
 <body>
-    <!-- 頁面標題 -->
     <h1>Google Sheets 數據顯示</h1>
-    
-    <!-- 數據顯示容器 -->
-    <div class="data-container">
-        <!-- 這裡會顯示從 Google Sheets 讀取的數字 -->
-        <div id="numberDisplay" class="loading">載入中...</div>
-        <!-- 顯示最後更新時間 -->
-        <div id="lastUpdate" class="last-update"></div>
-        <!-- 重新整理按鈕 -->
-        <div style="text-align: center; margin-top: 15px;">
-            <button id="refreshButton" class="refresh-button">🔄 重新整理</button>
-        </div>
-    </div>
+    <div id="num">載入中...</div>
+    <button onclick="load()">重新整理</button>
+    <div id="time"></div>
 
-    <!-- JavaScript 程式碼 -->
     <script>
-        // 你的 Google Sheets CSV 連結
-        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHDxdW5EX7B356k6lVFMOxsKqe-R73pre7tInKZmYOBpitUEoICGTckK7Coc_PbuWK89EzHEP3kmXZ/pub?gid=0&single=true&output=csv';
-        
-        // 取得 HTML 元素的參考，方便後續操作
-        const numberDisplay = document.getElementById('numberDisplay');
-        const lastUpdate = document.getElementById('lastUpdate');
-        const refreshButton = document.getElementById('refreshButton');
-        
-        // 從 Google Sheets 讀取數據的函數
-        async function fetchData() {
-            try {
-                // 禁用重新整理按鈕，避免重複請求
-                refreshButton.disabled = true;
-                refreshButton.textContent = '🔄 載入中...';
-                
-                // 顯示載入狀態
-                numberDisplay.innerHTML = '<div class="loading">載入中...</div>';
-                
-                // 使用 fetch API 向 Google Sheets 發送請求
-                // 加上隨機數和時間戳記，強制避免快取
-                const timestamp = new Date().getTime();
-                const randomNum = Math.random();
-                const response = await fetch(CSV_URL + '&t=' + timestamp + '&r=' + randomNum, {
-                    // 加上這些 headers 來避免快取問題
-                    headers: {
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache',
-                        'Expires': '0'
-                    }
-                });
-                
-                // 檢查請求是否成功
-                if (!response.ok) {
-                    throw new Error(`網路請求失敗: ${response.status}`);
-                }
-                
-                // 取得 CSV 文字內容
-                const csvText = await response.text();
-                console.log('收到的 CSV 資料:', csvText); // 除錯用，在開發者工具中可以看到
-                
-                // 解析 CSV 內容
-                const data = parseCSV(csvText);
-                console.log('解析後的資料:', data); // 除錯用
-                
-                // 從解析後的資料中找到 num 欄位的值
-                if (data && data.length > 1) {
-                    // 尋找包含 num 資料的行
-                    let numValue = null;
-                    for (let i = 1; i < data.length; i++) {
-                        if (data[i].num !== undefined && data[i].num !== '') {
-                            numValue = data[i].num;
-                            break;
-                        }
-                    }
-                    
-                    if (numValue !== null) {
-                        // 顯示數字
-                        numberDisplay.innerHTML = `<div class="number-display">${numValue}</div>`;
-                    } else {
-                        // 如果找不到數據，顯示錯誤訊息
-                        numberDisplay.innerHTML = '<div class="error">找不到 num 欄位的資料</div>';
-                    }
-                } else {
-                    // 如果資料格式不對，顯示錯誤訊息
-                    numberDisplay.innerHTML = '<div class="error">資料格式錯誤或是空的</div>';
-                }
-                
-                // 顯示最後更新時間
-                const now = new Date();
-                lastUpdate.textContent = `最後更新: ${now.toLocaleString('zh-TW')}`;
-                
-            } catch (error) {
-                // 如果發生錯誤，顯示錯誤訊息
-                console.error('讀取數據時發生錯誤:', error);
-                numberDisplay.innerHTML = '<div class="error">載入失敗: ' + error.message + '</div>';
-            } finally {
-                // 重新啟用按鈕
-                refreshButton.disabled = false;
-                refreshButton.textContent = '🔄 重新整理';
-            }
+        function load() {
+            fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vQHDxdW5EX7B356k6lVFMOxsKqe-R73pre7tInKZmYOBpitUEoICGTckK7Coc_PbuWK89EzHEP3kmXZ/pub?output=csv&' + Date.now())
+            .then(r => r.text())
+            .then(data => {
+                console.log('CSV資料:', data);
+                let lines = data.split('\n');
+                let value = lines[1] ? lines[1].split(',')[0] : '無資料';
+                document.getElementById('num').innerText = value;
+                document.getElementById('time').innerText = '更新時間: ' + new Date().toLocaleString();
+            })
+            .catch(e => {
+                console.error('錯誤:', e);
+                document.getElementById('num').innerText = '載入失敗';
+            });
         }
-        
-        // 簡單的 CSV 解析函數
-        function parseCSV(csvText) {
-            // 將 CSV 文字按行分割
-            const lines = csvText.trim().split('\n');
-            
-            // 取得標題行（第一行）
-            const headers = lines[0].split(',').map(header => header.replace(/"/g, '').trim());
-            
-            // 解析每一行數據
-            const result = [];
-            for (let i = 0; i < lines.length; i++) {
-                const values = lines[i].split(',').map(value => value.replace(/"/g, '').trim());
-                const row = {};
-                
-                // 將每個值對應到相應的標題
-                headers.forEach((header, index) => {
-                    row[header] = values[index];
-                });
-                
-                result.push(row);
-            }
-            
-            return result;
-        }
-        
-        // 頁面載入完成後立即讀取數據
-        fetchData();
-        
-        // 設定自動更新，每60秒檢查一次新數據（增加到60秒避免太頻繁）
-        setInterval(fetchData, 60000);
-        
-        // 重新整理按鈕的點擊事件
-        refreshButton.addEventListener('click', function() {
-            console.log('使用者點擊重新整理按鈕');
-            fetchData();
-        });
-        
-        // 也可以讓使用者點擊數字來手動更新（保留原功能）
-        numberDisplay.addEventListener('click', function() {
-            console.log('使用者點擊數字區域');
-            fetchData();
-        });
+        load();
     </script>
 </body>
 </html>
