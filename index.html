@@ -1,37 +1,124 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Google Sheets 數據</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>出席狀況追蹤</title>
     <style>
-        body { font-family: Arial; text-align: center; padding: 20px; }
-        #num { font-size: 48px; color: #007bff; margin: 20px; }
-        button { padding: 10px 20px; font-size: 16px; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .column {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .column h2 {
+            margin-top: 0;
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .present h2 {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .absent h2 {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .person {
+            padding: 8px;
+            margin: 5px 0;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
-    <h1>Google Sheets 數據顯示</h1>
-    <div id="num">載入中...</div>
-    <button onclick="load()">重新整理</button>
-    <div id="time"></div>
+    <div class="container">
+        <div class="column present">
+            <h2>出席</h2>
+            <div id="present-list" class="loading">載入中...</div>
+        </div>
+        <div class="column absent">
+            <h2>未出席</h2>
+            <div id="absent-list" class="loading">載入中...</div>
+        </div>
+    </div>
 
     <script>
-        function load() {
-            fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vQHDxdW5EX7B356k6lVFMOxsKqe-R73pre7tInKZmYOBpitUEoICGTckK7Coc_PbuWK89EzHEP3kmXZ/pub?output=csv&' + Date.now())
-            .then(r => r.text())
-            .then(data => {
-                console.log('CSV資料:', data);
-                let lines = data.split('\n');
-                let value = lines[1] ? lines[1].split(',')[0] : '無資料';
-                document.getElementById('num').innerText = value;
-                document.getElementById('time').innerText = '更新時間: ' + new Date().toLocaleString();
-            })
-            .catch(e => {
-                console.error('錯誤:', e);
-                document.getElementById('num').innerText = '載入失敗';
-            });
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHDxdW5EX7B356k6lVFMOxsKqe-R73pre7tInKZmYOBpitUEoICGTckK7Coc_PbuWK89EzHEP3kmXZ/pub?gid=0&single=true&output=csv';
+
+        async function fetchData() {
+            try {
+                const response = await fetch(CSV_URL);
+                const csvText = await response.text();
+                
+                const lines = csvText.trim().split('\n');
+                const headers = lines[0].split(',');
+                
+                const presentList = document.getElementById('present-list');
+                const absentList = document.getElementById('absent-list');
+                
+                presentList.innerHTML = '';
+                absentList.innerHTML = '';
+                
+                // 處理每一行資料（跳過標題行）
+                for (let i = 1; i < lines.length; i++) {
+                    const data = lines[i].split(',');
+                    const name = data[0]?.trim();
+                    const status = data[1]?.trim();
+                    
+                    if (name) {
+                        const personDiv = document.createElement('div');
+                        personDiv.className = 'person';
+                        personDiv.textContent = name;
+                        
+                        if (status === '出席') {
+                            presentList.appendChild(personDiv);
+                        } else {
+                            absentList.appendChild(personDiv);
+                        }
+                    }
+                }
+                
+                // 如果沒有資料，顯示提示
+                if (presentList.children.length === 0) {
+                    presentList.innerHTML = '<div class="loading">暫無出席人員</div>';
+                }
+                if (absentList.children.length === 0) {
+                    absentList.innerHTML = '<div class="loading">暫無未出席人員</div>';
+                }
+                
+            } catch (error) {
+                console.error('載入資料失敗:', error);
+                document.getElementById('present-list').innerHTML = '<div class="loading">載入失敗</div>';
+                document.getElementById('absent-list').innerHTML = '<div class="loading">載入失敗</div>';
+            }
         }
-        load();
+
+        // 頁面載入時執行
+        fetchData();
+        
+        // 每30秒自動重新整理一次資料
+        setInterval(fetchData, 30000);
     </script>
 </body>
 </html>
