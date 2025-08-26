@@ -1,9 +1,170 @@
-<!doctype html>
-<html lang="zh-Hant">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>1</title>
-  </head>
-  <body>1</body>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <!-- 設定頁面編碼為 UTF-8，支援中文 -->
+    <meta charset="UTF-8">
+    <!-- 讓頁面在手機上正確顯示 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 頁面標題，會顯示在瀏覽器分頁上 -->
+    <title>Google Sheets 數據顯示</title>
+    
+    <!-- CSS 樣式設定 -->
+    <style>
+        /* 設定整個頁面的基本樣式 */
+        body {
+            font-family: Arial, sans-serif;  /* 字體設定 */
+            margin: 20px;                    /* 頁面邊距 */
+            background-color: #f5f5f5;       /* 背景顏色 */
+        }
+        
+        /* 標題樣式 */
+        h1 {
+            color: #333;                     /* 文字顏色 */
+            text-align: center;              /* 文字置中 */
+        }
+        
+        /* 數據容器的樣式 */
+        .data-container {
+            background-color: white;         /* 背景白色 */
+            padding: 20px;                   /* 內邊距 */
+            border-radius: 8px;              /* 圓角邊框 */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 陰影效果 */
+            max-width: 600px;                /* 最大寬度 */
+            margin: 0 auto;                  /* 水平置中 */
+        }
+        
+        /* 數字顯示區域的樣式 */
+        .number-display {
+            font-size: 48px;                /* 大字體 */
+            font-weight: bold;               /* 粗體 */
+            color: #007bff;                  /* 藍色 */
+            text-align: center;              /* 置中 */
+            margin: 20px 0;                  /* 上下間距 */
+        }
+        
+        /* 載入狀態的樣式 */
+        .loading {
+            text-align: center;              /* 文字置中 */
+            color: #666;                     /* 灰色文字 */
+            font-style: italic;              /* 斜體 */
+        }
+        
+        /* 錯誤訊息的樣式 */
+        .error {
+            color: #dc3545;                  /* 紅色文字 */
+            text-align: center;              /* 文字置中 */
+            background-color: #f8d7da;       /* 淡紅色背景 */
+            padding: 10px;                   /* 內邊距 */
+            border-radius: 4px;              /* 圓角 */
+        }
+        
+        /* 更新時間顯示的樣式 */
+        .last-update {
+            font-size: 12px;                /* 小字體 */
+            color: #999;                     /* 淡灰色 */
+            text-align: center;              /* 置中 */
+            margin-top: 10px;                /* 上邊距 */
+        }
+    </style>
+</head>
+<body>
+    <!-- 頁面標題 -->
+    <h1>Google Sheets 數據顯示</h1>
+    
+    <!-- 數據顯示容器 -->
+    <div class="data-container">
+        <!-- 這裡會顯示從 Google Sheets 讀取的數字 -->
+        <div id="numberDisplay" class="loading">載入中...</div>
+        <!-- 顯示最後更新時間 -->
+        <div id="lastUpdate" class="last-update"></div>
+    </div>
+
+    <!-- JavaScript 程式碼 -->
+    <script>
+        // 你的 Google Sheets CSV 連結
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQHDxdW5EX7B356k6lVFMOxsKqe-R73pre7tInKZmYOBpitUEoICGTckK7Coc_PbuWK89EzHEP3kmXZ/pub?gid=0&single=true&output=csv';
+        
+        // 取得 HTML 元素的參考，方便後續操作
+        const numberDisplay = document.getElementById('numberDisplay');
+        const lastUpdate = document.getElementById('lastUpdate');
+        
+        // 從 Google Sheets 讀取數據的函數
+        async function fetchData() {
+            try {
+                // 顯示載入狀態
+                numberDisplay.innerHTML = '<div class="loading">載入中...</div>';
+                
+                // 使用 fetch API 向 Google Sheets 發送請求
+                // 加上時間戳記避免瀏覽器快取舊資料
+                const response = await fetch(CSV_URL + '&t=' + new Date().getTime());
+                
+                // 檢查請求是否成功
+                if (!response.ok) {
+                    throw new Error('網路請求失敗');
+                }
+                
+                // 取得 CSV 文字內容
+                const csvText = await response.text();
+                
+                // 解析 CSV 內容
+                const data = parseCSV(csvText);
+                
+                // 從解析後的資料中找到 num 欄位的值
+                if (data && data.length > 1 && data[1].num !== undefined) {
+                    // 顯示數字（第二行的 num 欄位）
+                    const numValue = data[1].num;
+                    numberDisplay.innerHTML = `<div class="number-display">${numValue}</div>`;
+                } else {
+                    // 如果找不到數據，顯示錯誤訊息
+                    numberDisplay.innerHTML = '<div class="error">找不到數據</div>';
+                }
+                
+                // 顯示最後更新時間
+                const now = new Date();
+                lastUpdate.textContent = `最後更新: ${now.toLocaleString('zh-TW')}`;
+                
+            } catch (error) {
+                // 如果發生錯誤，顯示錯誤訊息
+                console.error('讀取數據時發生錯誤:', error);
+                numberDisplay.innerHTML = '<div class="error">載入失敗，請稍後重試</div>';
+            }
+        }
+        
+        // 簡單的 CSV 解析函數
+        function parseCSV(csvText) {
+            // 將 CSV 文字按行分割
+            const lines = csvText.trim().split('\n');
+            
+            // 取得標題行（第一行）
+            const headers = lines[0].split(',').map(header => header.replace(/"/g, '').trim());
+            
+            // 解析每一行數據
+            const result = [];
+            for (let i = 0; i < lines.length; i++) {
+                const values = lines[i].split(',').map(value => value.replace(/"/g, '').trim());
+                const row = {};
+                
+                // 將每個值對應到相應的標題
+                headers.forEach((header, index) => {
+                    row[header] = values[index];
+                });
+                
+                result.push(row);
+            }
+            
+            return result;
+        }
+        
+        // 頁面載入完成後立即讀取數據
+        fetchData();
+        
+        // 設定自動更新，每30秒檢查一次新數據
+        setInterval(fetchData, 30000);
+        
+        // 也可以讓使用者點擊數字來手動更新
+        numberDisplay.addEventListener('click', function() {
+            fetchData();
+        });
+    </script>
+</body>
 </html>
