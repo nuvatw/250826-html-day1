@@ -65,6 +65,34 @@
             text-align: center;              /* 置中 */
             margin-top: 10px;                /* 上邊距 */
         }
+        
+        /* 重新整理按鈕的樣式 */
+        .refresh-button {
+            background-color: #007bff;       /* 藍色背景 */
+            color: white;                    /* 白色文字 */
+            border: none;                    /* 無邊框 */
+            padding: 10px 20px;              /* 內邊距 */
+            border-radius: 5px;              /* 圓角 */
+            cursor: pointer;                 /* 滑鼠指標變成手型 */
+            font-size: 14px;                 /* 字體大小 */
+            transition: background-color 0.3s; /* 背景色變化動畫 */
+        }
+        
+        /* 按鈕滑鼠懸停效果 */
+        .refresh-button:hover {
+            background-color: #0056b3;       /* 深藍色背景 */
+        }
+        
+        /* 按鈕按下時的效果 */
+        .refresh-button:active {
+            transform: scale(0.98);          /* 稍微縮小 */
+        }
+        
+        /* 按鈕載入中的樣式 */
+        .refresh-button:disabled {
+            background-color: #6c757d;       /* 灰色背景 */
+            cursor: not-allowed;             /* 禁用指標 */
+        }
     </style>
 </head>
 <body>
@@ -77,6 +105,10 @@
         <div id="numberDisplay" class="loading">載入中...</div>
         <!-- 顯示最後更新時間 -->
         <div id="lastUpdate" class="last-update"></div>
+        <!-- 重新整理按鈕 -->
+        <div style="text-align: center; margin-top: 15px;">
+            <button id="refreshButton" class="refresh-button">🔄 重新整理</button>
+        </div>
     </div>
 
     <!-- JavaScript 程式碼 -->
@@ -87,36 +119,65 @@
         // 取得 HTML 元素的參考，方便後續操作
         const numberDisplay = document.getElementById('numberDisplay');
         const lastUpdate = document.getElementById('lastUpdate');
+        const refreshButton = document.getElementById('refreshButton');
         
         // 從 Google Sheets 讀取數據的函數
         async function fetchData() {
             try {
+                // 禁用重新整理按鈕，避免重複請求
+                refreshButton.disabled = true;
+                refreshButton.textContent = '🔄 載入中...';
+                
                 // 顯示載入狀態
                 numberDisplay.innerHTML = '<div class="loading">載入中...</div>';
                 
                 // 使用 fetch API 向 Google Sheets 發送請求
-                // 加上時間戳記避免瀏覽器快取舊資料
-                const response = await fetch(CSV_URL + '&t=' + new Date().getTime());
+                // 加上隨機數和時間戳記，強制避免快取
+                const timestamp = new Date().getTime();
+                const randomNum = Math.random();
+                const response = await fetch(CSV_URL + '&t=' + timestamp + '&r=' + randomNum, {
+                    // 加上這些 headers 來避免快取問題
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
                 
                 // 檢查請求是否成功
                 if (!response.ok) {
-                    throw new Error('網路請求失敗');
+                    throw new Error(`網路請求失敗: ${response.status}`);
                 }
                 
                 // 取得 CSV 文字內容
                 const csvText = await response.text();
+                console.log('收到的 CSV 資料:', csvText); // 除錯用，在開發者工具中可以看到
                 
                 // 解析 CSV 內容
                 const data = parseCSV(csvText);
+                console.log('解析後的資料:', data); // 除錯用
                 
                 // 從解析後的資料中找到 num 欄位的值
-                if (data && data.length > 1 && data[1].num !== undefined) {
-                    // 顯示數字（第二行的 num 欄位）
-                    const numValue = data[1].num;
-                    numberDisplay.innerHTML = `<div class="number-display">${numValue}</div>`;
+                if (data && data.length > 1) {
+                    // 尋找包含 num 資料的行
+                    let numValue = null;
+                    for (let i = 1; i < data.length; i++) {
+                        if (data[i].num !== undefined && data[i].num !== '') {
+                            numValue = data[i].num;
+                            break;
+                        }
+                    }
+                    
+                    if (numValue !== null) {
+                        // 顯示數字
+                        numberDisplay.innerHTML = `<div class="number-display">${numValue}</div>`;
+                    } else {
+                        // 如果找不到數據，顯示錯誤訊息
+                        numberDisplay.innerHTML = '<div class="error">找不到 num 欄位的資料</div>';
+                    }
                 } else {
-                    // 如果找不到數據，顯示錯誤訊息
-                    numberDisplay.innerHTML = '<div class="error">找不到數據</div>';
+                    // 如果資料格式不對，顯示錯誤訊息
+                    numberDisplay.innerHTML = '<div class="error">資料格式錯誤或是空的</div>';
                 }
                 
                 // 顯示最後更新時間
@@ -126,7 +187,11 @@
             } catch (error) {
                 // 如果發生錯誤，顯示錯誤訊息
                 console.error('讀取數據時發生錯誤:', error);
-                numberDisplay.innerHTML = '<div class="error">載入失敗，請稍後重試</div>';
+                numberDisplay.innerHTML = '<div class="error">載入失敗: ' + error.message + '</div>';
+            } finally {
+                // 重新啟用按鈕
+                refreshButton.disabled = false;
+                refreshButton.textContent = '🔄 重新整理';
             }
         }
         
@@ -158,11 +223,18 @@
         // 頁面載入完成後立即讀取數據
         fetchData();
         
-        // 設定自動更新，每30秒檢查一次新數據
-        setInterval(fetchData, 30000);
+        // 設定自動更新，每60秒檢查一次新數據（增加到60秒避免太頻繁）
+        setInterval(fetchData, 60000);
         
-        // 也可以讓使用者點擊數字來手動更新
+        // 重新整理按鈕的點擊事件
+        refreshButton.addEventListener('click', function() {
+            console.log('使用者點擊重新整理按鈕');
+            fetchData();
+        });
+        
+        // 也可以讓使用者點擊數字來手動更新（保留原功能）
         numberDisplay.addEventListener('click', function() {
+            console.log('使用者點擊數字區域');
             fetchData();
         });
     </script>
