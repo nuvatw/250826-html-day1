@@ -49,9 +49,30 @@
             color: #666;
             font-style: italic;
         }
+        .refresh-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .refresh-btn:hover {
+            background-color: #0056b3;
+        }
+        .refresh-btn:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body>
+    <button class="refresh-btn" onclick="fetchData()">🔄 重新整理</button>
+    
     <div class="container">
         <div class="column present">
             <h2>出席</h2>
