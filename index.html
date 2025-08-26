@@ -49,30 +49,9 @@
             color: #666;
             font-style: italic;
         }
-        .refresh-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        .refresh-btn:hover {
-            background-color: #0056b3;
-        }
-        .refresh-btn:active {
-            transform: scale(0.95);
-        }
     </style>
 </head>
 <body>
-    <button class="refresh-btn" onclick="fetchData()">🔄 重新整理</button>
-    
     <div class="container">
         <div class="column present">
             <h2>出席</h2>
@@ -89,20 +68,10 @@
 
         async function fetchData() {
             try {
-                // 加上時間戳記來避免快取問題
-                const timestamp = new Date().getTime();
-                const urlWithTimestamp = `${CSV_URL}&_=${timestamp}`;
-                
-                const response = await fetch(urlWithTimestamp, {
-                    cache: 'no-cache',
-                    headers: {
-                        'Cache-Control': 'no-cache'
-                    }
-                });
+                const response = await fetch(CSV_URL);
                 const csvText = await response.text();
                 
                 const lines = csvText.trim().split('\n');
-                const headers = lines[0].split(',');
                 
                 const presentList = document.getElementById('present-list');
                 const absentList = document.getElementById('absent-list');
@@ -110,18 +79,12 @@
                 presentList.innerHTML = '';
                 absentList.innerHTML = '';
                 
-                // 處理每一行資料（跳過標題行）
                 for (let i = 1; i < lines.length; i++) {
                     const data = lines[i].split(',');
-                    const nameField = data[0]?.trim().replace(/"/g, ''); // 移除可能的引號
-                    const status = data[1]?.trim().replace(/"/g, ''); // 移除可能的引號
+                    const name = data[0];
+                    const status = data[1];
                     
-                    if (nameField) {
-                        // 處理 "學號｜姓名" 格式，提取姓名部分
-                        const name = nameField.includes('｜') ? 
-                                   nameField.split('｜')[1].trim() : 
-                                   nameField;
-                        
+                    if (name) {
                         const personDiv = document.createElement('div');
                         personDiv.className = 'person';
                         personDiv.textContent = name;
@@ -134,9 +97,6 @@
                     }
                 }
                 
-                console.log('資料載入完成，出席人數:', presentList.children.length, '未出席人數:', absentList.children.length);
-                
-                // 如果沒有資料，顯示提示
                 if (presentList.children.length === 0) {
                     presentList.innerHTML = '<div class="loading">暫無出席人員</div>';
                 }
@@ -145,17 +105,12 @@
                 }
                 
             } catch (error) {
-                console.error('載入資料失敗:', error);
                 document.getElementById('present-list').innerHTML = '<div class="loading">載入失敗</div>';
                 document.getElementById('absent-list').innerHTML = '<div class="loading">載入失敗</div>';
             }
         }
 
-        // 頁面載入時執行
         fetchData();
-        
-        // 每30秒自動重新整理一次資料
-        setInterval(fetchData, 30000);
     </script>
 </body>
 </html>
