@@ -113,10 +113,15 @@
                 // 處理每一行資料（跳過標題行）
                 for (let i = 1; i < lines.length; i++) {
                     const data = lines[i].split(',');
-                    const name = data[0]?.trim().replace(/"/g, ''); // 移除可能的引號
+                    const nameField = data[0]?.trim().replace(/"/g, ''); // 移除可能的引號
                     const status = data[1]?.trim().replace(/"/g, ''); // 移除可能的引號
                     
-                    if (name) {
+                    if (nameField) {
+                        // 處理 "學號｜姓名" 格式，提取姓名部分
+                        const name = nameField.includes('｜') ? 
+                                   nameField.split('｜')[1].trim() : 
+                                   nameField;
+                        
                         const personDiv = document.createElement('div');
                         personDiv.className = 'person';
                         personDiv.textContent = name;
