@@ -89,7 +89,16 @@
 
         async function fetchData() {
             try {
-                const response = await fetch(CSV_URL);
+                // 加上時間戳記來避免快取問題
+                const timestamp = new Date().getTime();
+                const urlWithTimestamp = `${CSV_URL}&_=${timestamp}`;
+                
+                const response = await fetch(urlWithTimestamp, {
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache'
+                    }
+                });
                 const csvText = await response.text();
                 
                 const lines = csvText.trim().split('\n');
@@ -104,8 +113,8 @@
                 // 處理每一行資料（跳過標題行）
                 for (let i = 1; i < lines.length; i++) {
                     const data = lines[i].split(',');
-                    const name = data[0]?.trim();
-                    const status = data[1]?.trim();
+                    const name = data[0]?.trim().replace(/"/g, ''); // 移除可能的引號
+                    const status = data[1]?.trim().replace(/"/g, ''); // 移除可能的引號
                     
                     if (name) {
                         const personDiv = document.createElement('div');
@@ -119,6 +128,8 @@
                         }
                     }
                 }
+                
+                console.log('資料載入完成，出席人數:', presentList.children.length, '未出席人數:', absentList.children.length);
                 
                 // 如果沒有資料，顯示提示
                 if (presentList.children.length === 0) {
